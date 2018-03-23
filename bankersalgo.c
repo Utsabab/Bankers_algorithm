@@ -44,7 +44,7 @@ int main(int argc, char *argv[]) {
     srand(time(NULL));
     for (i=0;i<NUMBER_OF_CUSTOMERS;i++) {
         for (j=0;j<NUMBER_OF_RESOURCES;j++) {
-            int t = rand() % available[j];
+            int t = rand() % (available[j]+1);
             maximum[i][j] = t;
             allocation[i][j] = 0;
             need[i][j] = maximum[i][j] - allocation[i][j];
@@ -93,8 +93,9 @@ void *customer(void *id) {
             }
             printf("\n");
             if (request_resources(param, request) == 0) {
+                printf("\n");   
                 timestamp();
-                printf("customer= %d, Request satisfied.\n", param);
+                printf("customer= %d, Request satisfied.\n\n", param);
                 int count = 0;
                 for (i=0;i<NUMBER_OF_RESOURCES;i++) {
                     if (need[param][i] == 0) {
@@ -102,12 +103,12 @@ void *customer(void *id) {
                     }
                 }
                 if (count == 3) {
-                    printf ("Is it oka?");
                     int random_time = rand() % 100000;
                     usleep(random_time);
                     release_resources(param, request);
+                    printf("\n");
                     timestamp();
-                    printf("customer= %d, Resources released.\n", param);
+                    printf("customer= %d, Resources released.\n\n", param);
                 }
                 else {
                         int random_time = rand() % 1000;
@@ -118,6 +119,7 @@ void *customer(void *id) {
                 int random_time = rand() % 1000;
                 usleep(random_time);
                 retry = true;
+                printf("\n");
                 timestamp();
                 printf("customer= %d, Request denied.\n", param);
             }
@@ -129,7 +131,6 @@ void *customer(void *id) {
 
 
 int is_request_approved(int request[], int id) {
-    printf ("id: %d", id);
     int i;
     for (i=0;i<NUMBER_OF_RESOURCES;i++) {
         if (available[i] < request[i]) {
@@ -194,7 +195,6 @@ int is_request_safe() {
 }
 
 int request_resources(int customer_num, int request[]) {
-    printf("Customernum: %d", customer_num);
     int i;
     for (i=0;i<NUMBER_OF_RESOURCES;i++) {
         if (request[i] > need[customer_num][i]) {
