@@ -2,6 +2,7 @@
 #include <pthread.h>
 #include <stdlib.h>
 #include <time.h>
+#include <stdbool.h>
 
 #define NUMBER_OF_CUSTOMERS 5
 #define NUMBER_OF_RESOURCES 3
@@ -44,7 +45,6 @@ int main(int argc, char *argv[]) {
         }
     }
 
-
     for (i=0;i<NUMBER_OF_CUSTOMERS;i++) {
         threadid[i] = i;
         pthread_create(&threads[i], NULL, customer, (void *) (&threadid[i]));
@@ -53,8 +53,6 @@ int main(int argc, char *argv[]) {
     for (i=0;i<NUMBER_OF_CUSTOMERS;i++) {
         pthread_join(threads[i], NULL);
     }
-
-
     return 0;
 }
 
@@ -74,7 +72,7 @@ void *customer(void *id) {
     for (i=0;i<NUMBER_OF_RESOURCES;i++) {
         request[i] = rand() % (need[param][i] + 1);
     }
-   
+    
 
     pthread_mutex_unlock(&mutex);
 }
@@ -92,24 +90,59 @@ int is_request_approved(int request[] ,int id) {
         need[id][i] = need[id][i] - request[i];
     }
 
-    if (is_request_safe == 0) {
-
+    if (is_request_safe() == 0) {
+        return 0;
+    }
+    else {
+        for (i=0;i<NUMBER_OF_RESOURCES;i++) {
+            available[i] = available[i] + request[i];
+            allocation[id][i] = allocation[id][i] - request[i];
+            need[id][i] = need[id][i] + request[i];
+        }
+        return 1;
     }
 }
 
 int is_request_safe() {
+    int finish[NUMBER_OF_CUSTOMERS]; 
+    int work[NUMBER_OF_RESOURCES];
+    int safeSeq[NUMBER_OF_CUSTOMERS];
     int i;
     int j;
+    
     for (i=0;i<NUMBER_OF_CUSTOMERS;i++) {
-        int count = 0;
-        for (j=0;j<NUMBER_OF_RESOURCES;j++) {
-            if (need[i][j] <= available[j] ) {
-                count = count + 1;
+        finish[i] = 0;
+    }
+
+    for (i=0;i<NUMBER_OF_RESOURCES;i++) {
+        work[i] = available[i];
+    }
+
+    int count = 0;
+    while (count < NUMBER_OF_CUSTOMERS) {
+        bool found = false;
+        for (i=0;i<NUMBER_OF_CUSTOMERS;i++) {
+            if (finish[i] == 0) {
+                for (j=0;j<NUMBER_OF_RESOURCES;j++) {
+                    if (need[i][j] > work[j])
+                        break;
+                }
+
+                if (j == NUMBER_OF_RESOURCES) {
+                    for (int k=0;k<NUMBER_OF_RESOURCES;k++) {
+                        work[k] += allocation[i][k]; 
+                    }
+                    safeSeq[count++] = i;
+                    finish[i] = true;
+                    found = true;
+                }
             }
         }
-        if (count == NUMBER_OF_RESOURCES) {
-            return 0;
-        }
     }
-    return 1;
+    return 0;
 }
+
+
+int request resources(int customer num, int request[]);
+int release resources(int customer num, int release[]);
+
