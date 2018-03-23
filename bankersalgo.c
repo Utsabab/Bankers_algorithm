@@ -22,6 +22,7 @@ int request_resources(int customer_num, int request[]);
 int release_resources(int customer_num, int request[]);
 int is_request_approved(int request[], int id);
 int is_request_safe();
+void timestamp();
 
 int main(int argc, char *argv[]) {
 	int i;
@@ -66,9 +67,6 @@ void *customer(void *id) {
     int param = *((int *) id);
     srand(time(NULL)); 
 
-    
-
-    printf("\n customer= %d \n", param);
     int i;
     // for (i=0;i<NUMBER_OF_RESOURCES;i++) {
     //     printf("%d \n", need[param][i]);
@@ -81,9 +79,16 @@ void *customer(void *id) {
                 request[i] = rand() % (need[param][i] + 1);
             } 
         }
-        
+
             pthread_mutex_lock(&mutex);
+            timestamp();
+            printf("customer= %d, ", param);
+            for (i=0;i<NUMBER_OF_RESOURCES;i++) {
+                printf("%d, ", request[i]);
+            }
             if (request_resources(param, request) == 0) {
+                timestamp();
+                printf("customer= %d, Request satisfied.\n", param);
                 int count = 0;
                 for (i=0;i<NUMBER_OF_RESOURCES;i++) {
                     if (need[param][i] == 0) {
@@ -93,6 +98,8 @@ void *customer(void *id) {
                         int random_time = rand() % 100000;
                         usleep(random_time);
                         release_resources(param, request);
+                        timestamp();
+                        printf("customer= %d, Resources released.\n", param);
                     }
                     else {
                         for (i=0;i<NUMBER_OF_RESOURCES;i++) {
@@ -110,6 +117,8 @@ void *customer(void *id) {
                 int random_time = rand() % 1000;
                 usleep(random_time);
                 retry = true;
+                timestamp();
+                printf("customer= %d, Request denied.\n", param);
             }
         }
         pthread_mutex_unlock(&mutex);
@@ -203,4 +212,11 @@ int release_resources(int customer_num, int request[]) {
         maximum[customer_num][i] = t;
     }
     return 0;
+}
+
+void timestamp()
+{
+    time_t ltime; /* calendar time */
+    ltime=time(NULL); /* get current cal time */
+    printf("%s",asctime( localtime(&ltime) ) );
 }
