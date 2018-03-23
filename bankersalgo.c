@@ -73,36 +73,43 @@ void *customer(void *id) {
     // for (i=0;i<NUMBER_OF_RESOURCES;i++) {
     //     printf("%d \n", need[param][i]);
     // }
-
-    while (1) {
-
-        int request[NUMBER_OF_RESOURCES];
-            for (i=0;i<NUMBER_OF_RESOURCES;i++) {
+    bool is_retry = false;
+    int request[NUMBER_OF_RESOURCES];
+    while (1) {       
+        if (!retry) {
+           for (i=0;i<NUMBER_OF_RESOURCES;i++) {
                 request[i] = rand() % (need[param][i] + 1);
-            }
+            } 
+        }
+        
             pthread_mutex_lock(&mutex);
-            request_resources(param, request);
-            
-            int count = 0;
-            for (i=0;i<NUMBER_OF_RESOURCES;i++) {
-                if (need[param][i] == 0) {
-                    count = count + 1;
-                }
-                if (count == 3) {
-                    int random_time = rand() % 100000;
-                    usleep(random_time);
-                    release_resources(param, request);
-                }
-                else {
-                    for (i=0;i<NUMBER_OF_RESOURCES;i++) {
-                        allocation[param][i] = allocation[param][i] + request[i];
-                        need[param][i] = need[param][i] - request[i];
-                        available[i] = available[i] - request[i];
-                        int random_time = rand() % 1000;
+            if (request_resources(param, request) == 0) {
+                int count = 0;
+                for (i=0;i<NUMBER_OF_RESOURCES;i++) {
+                    if (need[param][i] == 0) {
+                        count = count + 1;
+                    }
+                    if (count == 3) {
+                        int random_time = rand() % 100000;
                         usleep(random_time);
+                        release_resources(param, request);
+                    }
+                    else {
+                        for (i=0;i<NUMBER_OF_RESOURCES;i++) {
+                            allocation[param][i] = allocation[param][i] + request[i];
+                            need[param][i] = need[param][i] - request[i];
+                            available[i] = available[i] - request[i];
+                            int random_time = rand() % 1000;
+                            usleep(random_time);
 
+                        }
                     }
                 }
+            }
+            else {
+                int random_time = rand() % 1000;
+                usleep(random_time);
+                retry = true;
             }
         }
         pthread_mutex_unlock(&mutex);
@@ -135,8 +142,6 @@ int is_request_approved(int request[], int id) {
         }
         int random_time = rand() % 10000;
         usleep(random_time);
-        is_request_approved(request, id);
-        printf("oka");
         return 1;
     }
 }
@@ -194,7 +199,7 @@ int release_resources(int customer_num, int request[]) {
     for (i = 0;i<NUMBER_OF_RESOURCES;i++) {
         available[i] = available[i] + allocation[customer_num][i];
         allocation[customer_num][i] = 0;
-        int t = rand() % available[i];
+        int t = rand() % (available[i] + 1);
         maximum[customer_num][i] = t;
     }
     return 0;
