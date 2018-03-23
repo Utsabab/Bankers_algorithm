@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <stdbool.h>
+#include <unistd.h>
 
 #define NUMBER_OF_CUSTOMERS 5
 #define NUMBER_OF_RESOURCES 3
@@ -17,6 +18,10 @@ int* threadid;
 pthread_mutex_t mutex;
 
 void* customer(void* id);
+int request_resources(int customer_num, int request[]);
+int release_resources(int customer_num, int request[]);
+int is_request_approved(int request[], int id);
+int is_request_safe();
 
 int main(int argc, char *argv[]) {
 	int i;
@@ -50,6 +55,7 @@ int main(int argc, char *argv[]) {
         pthread_create(&threads[i], NULL, customer, (void *) (&threadid[i]));
     }
 
+    
     for (i=0;i<NUMBER_OF_CUSTOMERS;i++) {
         pthread_join(threads[i], NULL);
     }
@@ -60,7 +66,7 @@ void *customer(void *id) {
     int param = *((int *) id);
     srand(time(NULL)); 
 
-    pthread_mutex_lock(&mutex);
+    
 
     printf("\n customer= %d \n", param);
     int i;
@@ -68,16 +74,43 @@ void *customer(void *id) {
     //     printf("%d \n", need[param][i]);
     // }
 
-    int request[NUMBER_OF_RESOURCES];
-    for (i=0;i<NUMBER_OF_RESOURCES;i++) {
-        request[i] = rand() % (need[param][i] + 1);
-    }
-    
+    while (1) {
 
-    pthread_mutex_unlock(&mutex);
+        int request[NUMBER_OF_RESOURCES];
+            for (i=0;i<NUMBER_OF_RESOURCES;i++) {
+                request[i] = rand() % (need[param][i] + 1);
+            }
+            pthread_mutex_lock(&mutex);
+            request_resources(param, request);
+            
+            int count = 0;
+            for (i=0;i<NUMBER_OF_RESOURCES;i++) {
+                if (need[param][i] == 0) {
+                    count = count + 1;
+                }
+                if (count == 3) {
+                    int random_time = rand() % 100000;
+                    usleep(random_time);
+                    release_resources(param, request);
+                }
+                else {
+                    for (i=0;i<NUMBER_OF_RESOURCES;i++) {
+                        allocation[param][i] = allocation[param][i] + request[i];
+                        need[param][i] = need[param][i] - request[i];
+                        available[i] = available[i] - request[i];
+                        int random_time = rand() % 1000;
+                        usleep(random_time);
+
+                    }
+                }
+            }
+        }
+        pthread_mutex_unlock(&mutex);
+        return NULL;
 }
 
-int is_request_approved(int request[] ,int id) {
+
+int is_request_approved(int request[], int id) {
     int i;
     for (i=0;i<NUMBER_OF_RESOURCES;i++) {
         if (available[i] < request[i]) {
@@ -93,12 +126,17 @@ int is_request_approved(int request[] ,int id) {
     if (is_request_safe() == 0) {
         return 0;
     }
+
     else {
         for (i=0;i<NUMBER_OF_RESOURCES;i++) {
             available[i] = available[i] + request[i];
             allocation[id][i] = allocation[id][i] - request[i];
             need[id][i] = need[id][i] + request[i];
         }
+        int random_time = rand() % 10000;
+        usleep(random_time);
+        is_request_approved(request, id);
+        printf("oka");
         return 1;
     }
 }
@@ -127,7 +165,6 @@ int is_request_safe() {
                     if (need[i][j] > work[j])
                         break;
                 }
-
                 if (j == NUMBER_OF_RESOURCES) {
                     for (int k=0;k<NUMBER_OF_RESOURCES;k++) {
                         work[k] += allocation[i][k]; 
@@ -142,7 +179,23 @@ int is_request_safe() {
     return 0;
 }
 
+int request_resources(int customer_num, int request[]) {
+    int i;
+    for (i=0;i<NUMBER_OF_RESOURCES;i++) {
+        if (request[i] > need[customer_num][i]) {
+            printf("Error!! Request is greater than need");
+        }
+    }
+    return is_request_approved(request, customer_num);;
+}
 
-int request resources(int customer num, int request[]);
-int release resources(int customer num, int release[]);
-
+int release_resources(int customer_num, int request[]) {
+    int i;
+    for (i = 0;i<NUMBER_OF_RESOURCES;i++) {
+        available[i] = available[i] + allocation[customer_num][i];
+        allocation[customer_num][i] = 0;
+        int t = rand() % available[i];
+        maximum[customer_num][i] = t;
+    }
+    return 0;
+}
