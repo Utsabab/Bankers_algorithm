@@ -71,12 +71,17 @@ void *customer(void *id) {
     // for (i=0;i<NUMBER_OF_RESOURCES;i++) {
     //     printf("%d \n", need[param][i]);
     // }
-    bool is_retry = false;
+    bool retry = false;
     int request[NUMBER_OF_RESOURCES];
     while (1) {       
         if (!retry) {
            for (i=0;i<NUMBER_OF_RESOURCES;i++) {
-                request[i] = rand() % (need[param][i] + 1);
+                if (need[param][i] == 0) {
+                    request[i] = 0;
+                }
+                else {
+                    request[i] = rand() % (need[param][i] + 1);
+                }    
             } 
         }
 
@@ -86,6 +91,7 @@ void *customer(void *id) {
             for (i=0;i<NUMBER_OF_RESOURCES;i++) {
                 printf("%d, ", request[i]);
             }
+            printf("\n");
             if (request_resources(param, request) == 0) {
                 timestamp();
                 printf("customer= %d, Request satisfied.\n", param);
@@ -94,24 +100,19 @@ void *customer(void *id) {
                     if (need[param][i] == 0) {
                         count = count + 1;
                     }
-                    if (count == 3) {
-                        int random_time = rand() % 100000;
-                        usleep(random_time);
-                        release_resources(param, request);
-                        timestamp();
-                        printf("customer= %d, Resources released.\n", param);
-                    }
-                    else {
-                        for (i=0;i<NUMBER_OF_RESOURCES;i++) {
-                            allocation[param][i] = allocation[param][i] + request[i];
-                            need[param][i] = need[param][i] - request[i];
-                            available[i] = available[i] - request[i];
-                            int random_time = rand() % 1000;
-                            usleep(random_time);
-
-                        }
-                    }
                 }
+                if (count == 3) {
+                    printf ("Is it oka?");
+                    int random_time = rand() % 100000;
+                    usleep(random_time);
+                    release_resources(param, request);
+                    timestamp();
+                    printf("customer= %d, Resources released.\n", param);
+                }
+                else {
+                        int random_time = rand() % 1000;
+                        usleep(random_time);
+                    }           
             }
             else {
                 int random_time = rand() % 1000;
@@ -120,13 +121,15 @@ void *customer(void *id) {
                 timestamp();
                 printf("customer= %d, Request denied.\n", param);
             }
-        }
-        pthread_mutex_unlock(&mutex);
+    pthread_mutex_unlock(&mutex);
+    }
+        
         return NULL;
 }
 
 
 int is_request_approved(int request[], int id) {
+    printf ("id: %d", id);
     int i;
     for (i=0;i<NUMBER_OF_RESOURCES;i++) {
         if (available[i] < request[i]) {
@@ -158,10 +161,8 @@ int is_request_approved(int request[], int id) {
 int is_request_safe() {
     int finish[NUMBER_OF_CUSTOMERS]; 
     int work[NUMBER_OF_RESOURCES];
-    int safeSeq[NUMBER_OF_CUSTOMERS];
     int i;
     int j;
-    
     for (i=0;i<NUMBER_OF_CUSTOMERS;i++) {
         finish[i] = 0;
     }
@@ -169,38 +170,39 @@ int is_request_safe() {
     for (i=0;i<NUMBER_OF_RESOURCES;i++) {
         work[i] = available[i];
     }
-
-    int count = 0;
-    while (count < NUMBER_OF_CUSTOMERS) {
-        bool found = false;
-        for (i=0;i<NUMBER_OF_CUSTOMERS;i++) {
-            if (finish[i] == 0) {
-                for (j=0;j<NUMBER_OF_RESOURCES;j++) {
-                    if (need[i][j] > work[j])
-                        break;
-                }
-                if (j == NUMBER_OF_RESOURCES) {
-                    for (int k=0;k<NUMBER_OF_RESOURCES;k++) {
-                        work[k] += allocation[i][k]; 
-                    }
-                    safeSeq[count++] = i;
-                    finish[i] = true;
-                    found = true;
-                }
+    
+    bool found = false;
+    for (i=0;i<NUMBER_OF_CUSTOMERS;i++) {
+        if (finish[i] == 0) {
+            for (j=0;j<NUMBER_OF_RESOURCES;j++) {
+                if (need[i][j] > work[j])
+                    break;
+            }
+            if (j == NUMBER_OF_RESOURCES) {
+                for (int k=0;k<NUMBER_OF_RESOURCES;k++) {
+                    work[k] += allocation[i][k]; 
+                }            
+                finish[i] = 1;
+                found = true;
             }
         }
+    }
+    if (found == false) {
+        return 1;
     }
     return 0;
 }
 
 int request_resources(int customer_num, int request[]) {
+    printf("Customernum: %d", customer_num);
     int i;
     for (i=0;i<NUMBER_OF_RESOURCES;i++) {
         if (request[i] > need[customer_num][i]) {
             printf("Error!! Request is greater than need");
         }
     }
-    return is_request_approved(request, customer_num);;
+    int return_is_approved = is_request_approved(request, customer_num);
+    return return_is_approved;
 }
 
 int release_resources(int customer_num, int request[]) {
@@ -210,6 +212,7 @@ int release_resources(int customer_num, int request[]) {
         allocation[customer_num][i] = 0;
         int t = rand() % (available[i] + 1);
         maximum[customer_num][i] = t;
+        need[customer_num][i] = maximum[customer_num][i] - allocation[customer_num][i];
     }
     return 0;
 }
